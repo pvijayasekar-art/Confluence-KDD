@@ -434,13 +434,19 @@
         : 'This may take 30-60 seconds on CPU';
 
       try {
+        // Extract page IDs for backend to fetch full content
+        const selectedPageIds = contextPages.length > 0 
+          ? contextPages.map(p => p.id).filter(id => id && id !== 'unknown')
+          : undefined;
+
         const response = await fetch('/refine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             problemStatement: currentProblem, 
             style: currentStyle,
-            contextPages: contextPages.length > 0 ? contextPages : undefined
+            contextPages: contextPages.length > 0 ? contextPages : undefined,
+            selectedPageIds: selectedPageIds
           })
         });
 
