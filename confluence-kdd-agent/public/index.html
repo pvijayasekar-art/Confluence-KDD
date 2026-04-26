@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Problem Statement Refiner | Confluence KDD Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .loading {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen text-white">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+        Problem Statement Refiner
+      </h1>
+      <p class="text-slate-300">Transform rough ideas into clear, stakeholder-ready problem statements</p>
+    </div>
+
+    <!-- Input Section -->
+    <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-slate-700">
+      <label class="block text-sm font-medium text-blue-300 mb-2">
+        Enter your problem statement
+      </label>
+      <textarea 
+        id="problemInput"
+        class="w-full h-32 p-4 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        placeholder="Example: Our auth system is old and slow and doesn't work with new cloud stuff. We need to fix it..."
+      ></textarea>
+      <p class="text-xs text-slate-500 mt-2">Be rough and informal - the AI will polish it for you</p>
+    </div>
+
+    <!-- Style Selection -->
+    <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-slate-700">
+      <label class="block text-sm font-medium text-blue-300 mb-4">Choose refinement style</label>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <label class="cursor-pointer">
+          <input type="radio" name="refinementStyle" value="unified" class="hidden peer" checked>
+          <div class="p-4 bg-slate-900/50 border-2 border-slate-600 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-500/10 transition-all hover:border-slate-500">
+            <div class="font-semibold mb-1">Option A: Unified</div>
+            <div class="text-sm text-slate-400">One polished statement for all stakeholders</div>
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="refinementStyle" value="per-stakeholder" class="hidden peer">
+          <div class="p-4 bg-slate-900/50 border-2 border-slate-600 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-500/10 transition-all hover:border-slate-500">
+            <div class="font-semibold mb-1">Option B: Per Stakeholder</div>
+            <div class="text-sm text-slate-400">Tailored versions for each audience</div>
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="refinementStyle" value="structured" class="hidden peer">
+          <div class="p-4 bg-slate-900/50 border-2 border-slate-600 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-500/10 transition-all hover:border-slate-500">
+            <div class="font-semibold mb-1">Option C: Structured</div>
+            <div class="text-sm text-slate-400">Sections: Business, Technical, Security, etc.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Refine Button -->
+    <button 
+      id="refineBtn"
+      class="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-semibold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-500/25"
+    >
+      ✨ Refine Problem Statement
+    </button>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="hidden mt-8 text-center">
+      <div class="inline-block p-4 bg-slate-800/50 rounded-xl">
+        <div class="flex items-center gap-3">
+          <div class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-slate-300" id="loadingText">Refining with AI...</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-2" id="loadingSubtext">This may take 30-60 seconds on CPU</p>
+      </div>
+    </div>
+
+    <!-- Context Search Section -->
+    <div id="contextSearchSection" class="hidden mt-8">
+      <div class="bg-amber-900/30 backdrop-blur-sm rounded-xl p-6 border border-amber-700/50">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          Relevant Documentation Found
+        </h2>
+        
+        <p class="text-sm text-slate-300 mb-4">
+          We found these potentially related pages in Confluence. Select pages to include as context for AI refinement, or skip to refine without context.
+        </p>
+
+        <div id="contextResults" class="space-y-3 max-h-80 overflow-y-auto">
+          <!-- Search results injected here -->
+        </div>
+
+        <div class="flex gap-3 mt-6">
+          <button 
+            id="refineWithContextBtn"
+            class="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-lg font-semibold transition-all"
+          >
+            ✨ Refine with Selected Context
+          </button>
+          <button 
+            id="skipContextBtn"
+            class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+          >
+            Skip Context
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden mt-8">
+      <div class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 rounded-xl p-6 border border-green-700/50">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Refined Problem Statement
+        </h2>
+        
+        <div id="refinedContent" class="fade-in">
+          <!-- Content injected here -->
+        </div>
+
+        <!-- Add to KDD Section -->
+        <div class="mt-6 pt-6 border-t border-green-700/30">
+          <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Continue to KDD
+          </h3>
+          <p class="text-sm text-slate-300 mb-4">Use this refined statement to create a KDD (Key Design Decision) document</p>
+          
+          <button 
+            id="addToKddBtn"
+            class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add to KDD Draft
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KDD Form Section (initially hidden) -->
+    <div id="kddFormSection" class="hidden mt-8">
+      <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-xl font-bold">Create KDD Draft</h2>
+          <span class="text-xs bg-amber-600/50 text-amber-200 px-2 py-1 rounded">DRAFT</span>
+        </div>
+        
+        <form id="kddForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">KDD Title</label>
+            <input type="text" id="kddTitle" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500" placeholder="KDD: [Topic] Decision">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Problem Statement (auto-filled)</label>
+            <textarea id="kddProblem" rows="4" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1">Goals (comma-separated)</label>
+              <input type="text" id="kddGoals" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="Goal 1, Goal 2, Goal 3">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1">Timeline</label>
+              <input type="text" id="kddTimeline" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="Q2 2024">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Proposed Solution</label>
+            <textarea id="kddSolution" rows="3" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="Describe your proposed approach..."></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Alternatives (comma-separated)</label>
+            <input type="text" id="kddAlternatives" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="Alternative 1, Alternative 2">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Risks (comma-separated)</label>
+            <input type="text" id="kddRisks" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="Risk 1, Risk 2">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Jira Tickets (comma-separated)</label>
+            <input type="text" id="kddJira" class="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" placeholder="PROJ-123, PROJ-456">
+          </div>
+        </form>
+
+        <div class="flex gap-3 mt-6">
+          <button 
+            id="createKddBtn"
+            class="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-lg font-semibold transition-all"
+          >
+            ✓ Confirm & Create KDD
+          </button>
+          <button 
+            id="cancelKddBtn"
+            class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="hidden mt-8">
+      <div class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 rounded-xl p-6 border border-green-700/50 text-center">
+        <svg class="w-16 h-16 text-green-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <h2 class="text-2xl font-bold mb-2">KDD Created Successfully!</h2>
+        <p class="text-slate-300 mb-4">Your Key Design Decision has been created in Confluence</p>
+        <a id="kddLink" href="#" target="_blank" class="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors">
+          View in Confluence →
+        </a>
+        <button id="startOverBtn" class="block mx-auto mt-4 text-slate-400 hover:text-white transition-colors">
+          Start Over
+        </button>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="hidden mt-8">
+      <div class="bg-gradient-to-r from-red-900/50 to-pink-900/50 rounded-xl p-6 border border-red-700/50">
+        <div class="flex items-center gap-3 mb-2">
+          <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <h3 class="font-semibold">Error</h3>
+        </div>
+        <p id="errorText" class="text-slate-300"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentRefinedResult = null;
+    let combinedProblemText = '';
+    let currentProblem = '';
+    let currentStyle = 'unified';
+    let contextSearchResults = [];
+
+    // Elements
+    const problemInput = document.getElementById('problemInput');
+    const refineBtn = document.getElementById('refineBtn');
+    const loadingState = document.getElementById('loadingState');
+    const loadingText = document.getElementById('loadingText');
+    const loadingSubtext = document.getElementById('loadingSubtext');
+    const contextSearchSection = document.getElementById('contextSearchSection');
+    const contextResults = document.getElementById('contextResults');
+    const refineWithContextBtn = document.getElementById('refineWithContextBtn');
+    const skipContextBtn = document.getElementById('skipContextBtn');
+    const resultsSection = document.getElementById('resultsSection');
+    const refinedContent = document.getElementById('refinedContent');
+    const addToKddBtn = document.getElementById('addToKddBtn');
+    const kddFormSection = document.getElementById('kddFormSection');
+    const kddForm = document.getElementById('kddForm');
+    const createKddBtn = document.getElementById('createKddBtn');
+    const cancelKddBtn = document.getElementById('cancelKddBtn');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const kddLink = document.getElementById('kddLink');
+    const startOverBtn = document.getElementById('startOverBtn');
+
+    // Event Listeners
+    refineBtn.addEventListener('click', handleRefine);
+    refineWithContextBtn.addEventListener('click', refineWithSelectedContext);
+    skipContextBtn.addEventListener('click', skipContextAndRefine);
+    addToKddBtn.addEventListener('click', showKddForm);
+    createKddBtn.addEventListener('click', createKdd);
+    cancelKddBtn.addEventListener('click', hideKddForm);
+    startOverBtn.addEventListener('click', resetAll);
+
+    async function handleRefine() {
+      const problem = problemInput.value.trim();
+      if (!problem) {
+        showError('Please enter a problem statement first');
+        return;
+      }
+
+      currentProblem = problem;
+      currentStyle = document.querySelector('input[name="refinementStyle"]:checked').value;
+
+      // Show loading for context search
+      refineBtn.disabled = true;
+      refineBtn.classList.add('opacity-50');
+      loadingState.classList.remove('hidden');
+      loadingText.textContent = 'Searching Confluence for relevant context...';
+      loadingSubtext.textContent = 'Looking for similar topics in your documentation';
+      contextSearchSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+
+      try {
+        // First, search for relevant context
+        const searchResponse = await fetch('/search-context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            problemStatement: currentProblem,
+            spaceKey: 'SD',
+            limit: 5
+          })
+        });
+
+        if (!searchResponse.ok) {
+          // If search fails, proceed without context
+          console.warn('Context search failed, proceeding without context');
+          await performRefinement([]);
+          return;
+        }
+
+        const searchData = await searchResponse.json();
+        contextSearchResults = searchData.results || [];
+        
+        console.log('Search response:', searchData);
+        console.log('Results count:', contextSearchResults.length);
+        console.log('contextSearchSection element:', contextSearchSection);
+        console.log('contextResults element:', contextResults);
+
+        loadingState.classList.add('hidden');
+
+        if (contextSearchResults.length > 0) {
+          console.log('Displaying context results...');
+          // Show context search results for user selection
+          displayContextResults(contextSearchResults, searchData.message);
+          contextSearchSection.classList.remove('hidden');
+          console.log('contextSearchSection hidden class removed');
+        } else {
+          console.log('No results found, proceeding without context');
+          // No results found, proceed directly to refinement
+          await performRefinement([]);
+        }
+      } catch (err) {
+        showError(err.message);
+        loadingState.classList.add('hidden');
+        refineBtn.disabled = false;
+        refineBtn.classList.remove('opacity-50');
+      }
+    }
+
+    function displayContextResults(results, message) {
+      console.log('displayContextResults called with', results.length, 'results');
+      console.log('contextResults element:', contextResults);
+      
+      if (!contextResults) {
+        console.error('contextResults element not found!');
+        return;
+      }
+      
+      let html = `<p class="text-sm text-slate-400 mb-3">${escapeHtml(message)}</p>`;
+      
+      html += results.map((result, index) => `
+        <div class="flex items-start gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-amber-500/50 transition-colors">
+          <input 
+            type="checkbox" 
+            id="context-${index}" 
+            class="mt-1 w-4 h-4 text-amber-500 bg-slate-800 border-slate-600 rounded focus:ring-amber-500"
+            data-index="${index}"
+          >
+          <div class="flex-1">
+            <label for="context-${index}" class="cursor-pointer">
+              <div class="font-medium text-amber-300 mb-1">${escapeHtml(result.title)}</div>
+              <div class="text-xs text-slate-400 line-clamp-2">${escapeHtml(result.excerpt)}</div>
+              <div class="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                <span>Last modified: ${result.lastModified ? new Date(result.lastModified).toLocaleDateString() : 'Unknown'}</span>
+                <a href="${result.url}" target="_blank" class="text-blue-400 hover:text-blue-300" onclick="event.stopPropagation()">View →</a>
+              </div>
+            </label>
+          </div>
+        </div>
+      `).join('');
+      
+      contextResults.innerHTML = html;
+      console.log('contextResults HTML set, length:', html.length);
+    }
+
+    function getSelectedContext() {
+      const checkboxes = contextResults.querySelectorAll('input[type="checkbox"]:checked');
+      return Array.from(checkboxes).map(cb => {
+        const index = parseInt(cb.dataset.index);
+        return contextSearchResults[index];
+      });
+    }
+
+    async function refineWithSelectedContext() {
+      const selectedContext = getSelectedContext();
+      contextSearchSection.classList.add('hidden');
+      await performRefinement(selectedContext);
+    }
+
+    async function skipContextAndRefine() {
+      contextSearchSection.classList.add('hidden');
+      await performRefinement([]);
+    }
+
+    async function performRefinement(contextPages) {
+      loadingState.classList.remove('hidden');
+      loadingText.textContent = 'Refining with AI...';
+      loadingSubtext.textContent = contextPages.length > 0 
+        ? `Using ${contextPages.length} context page(s) to enhance refinement` 
+        : 'This may take 30-60 seconds on CPU';
+
+      try {
+        const response = await fetch('/refine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            problemStatement: currentProblem, 
+            style: currentStyle,
+            contextPages: contextPages.length > 0 ? contextPages : undefined
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to refine');
+        }
+
+        currentRefinedResult = await response.json();
+        displayResults(currentRefinedResult);
+        resultsSection.classList.remove('hidden');
+        
+        // Show context indicator if context was used
+        if (contextPages.length > 0) {
+          const indicator = document.createElement('div');
+          indicator.className = 'mt-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-lg flex items-center gap-2 text-sm text-blue-300';
+          indicator.innerHTML = `
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Refined with context from ${contextPages.length} Confluence page(s)</span>
+          `;
+          refinedContent.appendChild(indicator);
+        }
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        refineBtn.disabled = false;
+        refineBtn.classList.remove('opacity-50');
+        loadingState.classList.add('hidden');
+      }
+    }
+
+    function displayResults(result) {
+      let html = '';
+      combinedProblemText = '';
+
+      if (result.unified) {
+        html = `
+          <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-600">
+            <p class="text-lg leading-relaxed">${escapeHtml(result.unified)}</p>
+          </div>
+        `;
+        combinedProblemText = result.unified;
+      } else if (result.perStakeholder) {
+        html = result.perStakeholder.map(s => `
+          <div class="mb-4 last:mb-0 bg-slate-900/50 p-4 rounded-lg border border-slate-600">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2 py-1 bg-blue-600/30 text-blue-300 text-xs rounded font-medium">${escapeHtml(s.stakeholder)}</span>
+              <span class="text-xs text-slate-500">Focus: ${escapeHtml(s.focus)}</span>
+            </div>
+            <p class="text-slate-200">${escapeHtml(s.refinedText)}</p>
+          </div>
+        `).join('');
+        combinedProblemText = result.perStakeholder.map(s => `[${s.stakeholder}]: ${s.refinedText}`).join('\n\n');
+      } else if (result.structured) {
+        html = result.structured.map(s => `
+          <div class="mb-4 last:mb-0 bg-slate-900/50 p-4 rounded-lg border border-slate-600">
+            <h4 class="font-semibold text-blue-400 mb-2">${escapeHtml(s.section)}</h4>
+            <p class="text-slate-200">${escapeHtml(s.content)}</p>
+          </div>
+        `).join('');
+        combinedProblemText = result.structured.map(s => `${s.section}:\n${s.content}`).join('\n\n');
+      }
+
+      refinedContent.innerHTML = html;
+    }
+
+    async function showKddForm() {
+      // Always set the problem statement first
+      document.getElementById('kddProblem').value = combinedProblemText;
+      resultsSection.classList.add('hidden');
+      kddFormSection.classList.remove('hidden');
+      
+      // Show loading state in the form
+      const addToKddBtn = document.getElementById('addToKddBtn');
+      const originalText = addToKddBtn.textContent;
+      addToKddBtn.textContent = '🤖 Generating KDD suggestions...';
+      addToKddBtn.disabled = true;
+      
+      // Remove any existing indicator
+      const existingIndicator = document.getElementById('ai-suggestions-indicator');
+      if (existingIndicator) existingIndicator.remove();
+      
+      try {
+        // Get AI suggestions for all KDD fields
+        const style = document.querySelector('input[name="refinementStyle"]:checked').value;
+        const response = await fetch('/suggest-kdd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            problemStatement: combinedProblemText, 
+            refinementStyle: style 
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `Server returned ${response.status}`);
+        }
+        
+        const suggestions = await response.json();
+        console.log('AI Suggestions received:', suggestions);
+        
+        // Auto-fill all form fields with AI suggestions
+        if (suggestions.title) document.getElementById('kddTitle').value = suggestions.title;
+        if (suggestions.goals && Array.isArray(suggestions.goals)) {
+          document.getElementById('kddGoals').value = suggestions.goals.join(', ');
+        }
+        if (suggestions.proposedSolution) document.getElementById('kddSolution').value = suggestions.proposedSolution;
+        if (suggestions.alternatives && Array.isArray(suggestions.alternatives)) {
+          document.getElementById('kddAlternatives').value = suggestions.alternatives.join(', ');
+        }
+        if (suggestions.risks && Array.isArray(suggestions.risks)) {
+          document.getElementById('kddRisks').value = suggestions.risks.join(', ');
+        }
+        if (suggestions.timeline) document.getElementById('kddTimeline').value = suggestions.timeline;
+        if (suggestions.jiraTickets && Array.isArray(suggestions.jiraTickets)) {
+          document.getElementById('kddJira').value = suggestions.jiraTickets.join(', ');
+        }
+        
+        // Show success indicator
+        const indicator = document.createElement('div');
+        indicator.id = 'ai-suggestions-indicator';
+        indicator.className = 'mb-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-lg flex items-center gap-2 text-sm text-blue-300';
+        indicator.innerHTML = `
+          <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          <span>AI has auto-filled suggestions. Fields populated: ${[
+            suggestions.title ? 'Title' : null,
+            suggestions.goals?.length ? 'Goals' : null,
+            suggestions.proposedSolution ? 'Solution' : null,
+            suggestions.alternatives?.length ? 'Alternatives' : null,
+            suggestions.risks?.length ? 'Risks' : null,
+            suggestions.timeline ? 'Timeline' : null
+          ].filter(Boolean).join(', ') || 'None'}</span>
+        `;
+        
+        const form = document.getElementById('kddForm');
+        form.parentNode.insertBefore(indicator, form);
+        
+      } catch (err) {
+        console.error('Error getting suggestions:', err);
+        showError(`AI suggestions failed: ${err.message}. Please fill in the form manually.`);
+      } finally {
+        addToKddBtn.textContent = originalText;
+        addToKddBtn.disabled = false;
+      }
+    }
+
+    function hideKddForm() {
+      kddFormSection.classList.add('hidden');
+      resultsSection.classList.remove('hidden');
+    }
+
+    async function createKdd() {
+      const data = {
+        title: document.getElementById('kddTitle').value,
+        problem: document.getElementById('kddProblem').value,
+        goals: document.getElementById('kddGoals').value.split(',').map(s => s.trim()).filter(Boolean),
+        proposedSolution: document.getElementById('kddSolution').value,
+        alternatives: document.getElementById('kddAlternatives').value.split(',').map(s => s.trim()).filter(Boolean),
+        risks: document.getElementById('kddRisks').value.split(',').map(s => s.trim()).filter(Boolean),
+        timeline: document.getElementById('kddTimeline').value,
+        jiraTickets: document.getElementById('kddJira').value.split(',').map(s => s.trim()).filter(Boolean),
+      };
+
+      if (!data.title) {
+        showError('Please enter a KDD title');
+        return;
+      }
+      if (!data.problem) {
+        showError('Please enter a problem statement');
+        return;
+      }
+
+      createKddBtn.disabled = true;
+      createKddBtn.textContent = 'Creating...';
+
+      try {
+        const response = await fetch('/kdd/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to create KDD');
+        }
+
+        const result = await response.json();
+        kddLink.href = result.url;
+        kddFormSection.classList.add('hidden');
+        successMessage.classList.remove('hidden');
+      } catch (err) {
+        showError(err.message);
+        createKddBtn.disabled = false;
+        createKddBtn.textContent = '✓ Confirm & Create KDD';
+      }
+    }
+
+    function resetAll() {
+      problemInput.value = '';
+      currentRefinedResult = null;
+      combinedProblemText = '';
+      currentProblem = '';
+      contextSearchResults = [];
+      refinedContent.innerHTML = '';
+      contextResults.innerHTML = '';
+      kddForm.reset();
+      resultsSection.classList.add('hidden');
+      contextSearchSection.classList.add('hidden');
+      kddFormSection.classList.add('hidden');
+      successMessage.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+      
+      // Remove AI suggestions indicator if present
+      const indicator = document.getElementById('ai-suggestions-indicator');
+      if (indicator) indicator.remove();
+    }
+
+    function showError(message) {
+      errorText.textContent = message;
+      errorMessage.classList.remove('hidden');
+      setTimeout(() => errorMessage.classList.add('hidden'), 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

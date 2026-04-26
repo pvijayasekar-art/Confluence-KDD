@@ -1,0 +1,45 @@
+services:
+  confluence-kdd-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: confluence-kdd-agent
+    ports:
+      - "2304:2304"
+    environment:
+      # Ollama Configuration - use IP directly to avoid DNS issues
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://172.27.0.2:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3}
+      
+      # Confluence Configuration (set these in .env file or environment)
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - CONFLUENCE_EMAIL=${CONFLUENCE_EMAIL}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+      - CONFLUENCE_SPACE_KEY=${CONFLUENCE_SPACE_KEY:-SD}
+      
+      # KDD Configuration
+      - KDD_PARENT_PAGE_ID=${KDD_PARENT_PAGE_ID:-123456}
+      - KDD_DEFAULT_STATUS=${KDD_DEFAULT_STATUS:-Draft}
+      
+      # Server Configuration
+      - PORT=2304
+      - MAX_SEARCH_RESULTS=${MAX_SEARCH_RESULTS:-10}
+    networks:
+      - ai-network
+      - confluence-agent-network
+    extra_hosts:
+      - "hardcore_dijkstra:172.27.0.2"
+      - "ollama:172.27.0.2"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2304/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  confluence-agent-network:
+    driver: bridge
+  ai-network:
+    external: true
