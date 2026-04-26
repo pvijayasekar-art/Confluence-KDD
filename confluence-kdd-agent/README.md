@@ -1,14 +1,17 @@
 # Confluence KDD Agent
 
-A TypeScript LangChain agent that searches Confluence using natural language-to-CQL translation and creates standardized KDD (Key Design Decision) templates.
+A TypeScript LangChain agent that searches Confluence using natural language-to-CQL translation, creates standardized KDD (Key Design Decision) templates, and provides AI-powered Architecture Review Forum assessments.
 
 ## Features
 
 - **Natural Language Search**: Translate plain English queries to Confluence Query Language (CQL)
 - **KDD Template Creation**: Generate structured design decision documents with standardized sections
+- **AI-Powered KDD Review**: Automated Architecture Review Forum assessment using 6-prompt framework
+- **Auto-Review on Creation**: Optional automatic review when creating KDD pages
+- **Confluence Comments**: Post AI review results as page comments
 - **LangChain Integration**: Uses Ollama with Qwen 3 for reasoning and translation
 - **REST API**: Simple HTTP endpoints for integration
-- **Docker Deployment**: Containerized for easy deployment
+- **Docker Deployment**: Containerized for easy deployment with DNS-based service discovery
 
 ## Architecture
 
@@ -105,6 +108,43 @@ Auto-populates KDD template fields based on problem statement:
                                                   └─────────────────┘
 ```
 
+#### 4. KDD Review Agent (`KddReviewService`)
+
+Performs Architecture Review Forum assessment using 6-prompt framework:
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  KDD Page       │────▶│  6-Prompt Review │────▶│ Review Results  │
+│  Content        │     │  (Sequential)    │     │                 │
+└─────────────────┘     └──────────────────┘     ├─────────────────┤
+       │                                            │ • Overall Rating│
+       ▼                                            │ • Forum Ready │
+┌─────────────────┐                                 │ • Critical Gaps│
+│ Confluence      │                                 │ • Checklist   │
+│ Comment         │◀────────────────────────────────┘ • Improvements│
+└─────────────────┘                                  └─────────────────┘
+```
+
+**Architecture Review Forum 6-Prompt Framework:**
+
+| # | Prompt | Purpose | Status Tags |
+|---|--------|---------|-------------|
+| 1 | **Completeness Check** | Verifies 13 required sections (Problem, Decision, Rationale, Risks, etc.) | ✅ CLEAR / 🟡 NEEDS_SHARPENING / 🔴 MISSING |
+| 2 | **Sharpness & Clarity** | Flags vague language, unsupported claims, incomplete reasoning | ✅ CLEAR / 🟡 NEEDS_SHARPENING |
+| 3 | **Outcome Clarity** | Checks measurability, success criteria, rollback plan | ✅ CLEAR / 🟡 NEEDS_SHARPENING / 🔴 VAGUE |
+| 4 | **Stakeholder Accessibility** | Assesses understandability for technical and non-technical audiences | ✅ CLEAR / 🟡 ACCESSIBILITY_ISSUE |
+| 5 | **Abbreviations & Terminology** | Lists undefined acronyms and jargon risks | ✅ CLEAR / 🔴 UNDEFINED / 🟡 JARGON_RISK |
+| 6 | **Full Read-Through** | Overall assessment, forum readiness, required inputs, recommendations | ✅ CLEAR / 🟡 NEEDS_WORK |
+
+**Process:**
+1. Fetch KDD page content from Confluence
+2. Run 6 review prompts sequentially (to avoid overwhelming Ollama)
+3. Calculate overall rating (Poor/Needs Work/Acceptable/Strong)
+4. Determine forum readiness (Yes/No/Conditional)
+5. Extract critical gaps and recommendations
+6. Display results in UI with status indicators
+7. Optional: Post review as Confluence page comment
+
 ### Token Optimization Strategy
 
 To reduce AI costs and improve performance:
@@ -170,8 +210,9 @@ cp .env.example .env
 Required environment variables:
 
 ```env
-# Ollama (your local LLM)
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+# Ollama (DNS name via extra_hosts in docker-compose.yml)
+# The docker-compose.yml maps hardcore_dijkstra → 172.27.0.3
+OLLAMA_BASE_URL=http://hardcore_dijkstra:11434
 OLLAMA_MODEL=qwen3
 
 # Confluence
@@ -259,6 +300,178 @@ Response:
 }
 ```
 
+### Review KDD Document
+
+Run Architecture Review Forum 6-prompt assessment on a Confluence KDD page.
+
+```bash
+POST /kdd/review
+Content-Type: application/json
+
+{
+  "pageId": "1671169",
+  "autoPost": false
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "pageId": "1671169",
+  "pageTitle": "KDD: OAuth2 Implementation",
+  "review": {
+    "overallRating": "Acceptable",
+    "forumReady": "Conditional",
+    "sections": {
+      "completeness": {
+        "status": "NEEDS_SHARPENING",
+        "findings": ["⚠️ MISSING: Risk mitigation section"],
+        "suggestions": ["Add detailed risk mitigation strategies"]
+      },
+      "clarity": {
+        "status": "CLEAR",
+        "findings": [],
+        "suggestions": []
+      },
+      "outcome": {
+        "status": "NEEDS_SHARPENING",
+        "findings": ["🟡 VAGUE OUTCOME: 'Improve performance' needs metrics"],
+        "suggestions": ["Define specific KPIs: 'Reduce API latency by 50%'"]
+      },
+      "stakeholder": {
+        "status": "CLEAR",
+        "findings": [],
+        "suggestions": []
+      },
+      "abbreviations": {
+        "status": "NEEDS_SHARPENING",
+        "findings": ["🟡 JARGON RISK: 'IdP' may confuse non-technical readers"],
+        "suggestions": ["Expand 'IdP' to 'Identity Provider (IdP)' on first use"]
+      },
+      "fullRead": {
+        "status": "NEEDS_SHARPENING",
+        "findings": ["Overall quality acceptable but needs work"],
+        "suggestions": ["Complete sections flagged above"]
+      }
+    },
+    "criticalGaps": [
+      "Missing risk mitigation section",
+      "Outcomes need specific metrics"
+    ],
+    "requiredInputs": [
+      { "item": "Security review sign-off", "provider": "Security Team Lead" }
+    ],
+    "recommendations": [
+      { "section": "Risks", "recommendation": "Add detailed mitigation strategies for each risk" }
+    ],
+    "forumReadinessChecklist": [
+      { "item": "Document peer-reviewed", "status": false },
+      { "item": "Alternatives documented", "status": true }
+    ]
+  },
+  "postedToConfluence": false
+}
+```
+
+### Post Review as Comment
+
+Post AI review results as a Confluence page comment.
+
+```bash
+POST /kdd/review-and-comment
+Content-Type: application/json
+
+{
+  "pageId": "1671169",
+  "reviewResults": {
+    "overallRating": "Acceptable",
+    "forumReady": "Conditional",
+    "sections": { ... },
+    "criticalGaps": [...],
+    "requiredInputs": [...],
+    "recommendations": [...],
+    "forumReadinessChecklist": [...]
+  }
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "pageId": "1671169",
+  "message": "Review posted as comment successfully"
+}
+```
+
+### Create KDD with Auto-Review
+
+Create a KDD and optionally run automatic review.
+
+```bash
+POST /kdd/create?autoReview=true
+Content-Type: application/json
+
+{
+  "title": "KDD: OAuth2 Implementation",
+  "problem": "Current authentication system lacks SSO support",
+  "goals": ["Enable single sign-on"],
+  "proposedSolution": "Implement OAuth2 with Azure AD",
+  "alternatives": ["SAML 2.0", "LDAP"],
+  "risks": ["Migration complexity"],
+  "timeline": "Q2 2024"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "pageId": "234567",
+  "title": "KDD: OAuth2 Implementation",
+  "url": "https://.../pages/viewpage.action?pageId=234567",
+  "spaceKey": "SD",
+  "parentPageId": "123456",
+  "review": { ... },
+  "autoReviewEnabled": true
+}
+```
+
+### Search Confluence (Legacy)
+
+Convert natural language to CQL and search.
+
+```bash
+POST /search
+Content-Type: application/json
+
+{
+  "query": "find all KDDs about authentication from last month",
+  "spaceKey": "SD",
+  "limit": 10
+}
+```
+
+Response:
+```json
+{
+  "cql": "type=page AND space=SD AND title ~ \"KDD\" AND text ~ \"authentication\" AND lastModified >= -4w",
+  "explanation": "Searching for pages with KDD in title containing authentication references modified in last 4 weeks",
+  "results": [
+    {
+      "id": "123456",
+      "title": "KDD: OAuth2 Authentication Flow",
+      "url": "...",
+      "excerpt": "...",
+      "lastModified": "2024-01-10T09:00:00.000Z",
+      "spaceKey": "SD"
+    }
+  ],
+  "total": 5
+}
+```
+
 ### Create KDD
 
 Create a new KDD page with template.
@@ -305,6 +518,48 @@ Response:
 }
 ```
 
+## Web UI
+
+The application includes a built-in web interface accessible at `http://localhost:2304`.
+
+### Features
+
+1. **Problem Statement Refiner**
+   - Enter rough problem statements
+   - Choose refinement style (Unified, Per-Stakeholder, Structured)
+   - Search Confluence for context
+   - Review AI-refined statements
+
+2. **KDD Draft Creation**
+   - Auto-populated fields from AI analysis
+   - Manual editing capabilities
+   - One-click creation in Confluence
+
+3. **KDD Review (Architecture Review Forum)**
+   - Direct access from home page: "🏛️ Review Existing KDD Document"
+   - Enter Confluence page ID or full URL
+   - Run 6-prompt AI assessment
+   - View results with status indicators:
+     - ✅ CLEAR: Section meets standards
+     - 🟡 NEEDS_SHARPENING: Present but needs improvement
+     - 🔴 MISSING: Required content not found
+     - ⚠️ RISK: Potential issues identified
+   - Post review as Confluence comment
+
+### Usage Flow
+
+**To Review a KDD:**
+1. Click "🏛️ Review Existing KDD Document" on home page
+2. Enter Confluence page ID (e.g., `1671169`) or paste full URL
+3. Click "🔍 Review KDD"
+4. Wait 30-60 seconds for AI analysis (6 prompts run sequentially)
+5. Review results showing:
+   - Overall Rating (Poor/Needs Work/Acceptable/Strong)
+   - Forum Ready status (Yes/No/Conditional)
+   - Critical gaps requiring attention
+   - Per-section analysis with findings and suggestions
+6. Click "📤 Post Review as Comment" to save to Confluence (optional)
+
 ## Development
 
 ### Local Setup (without Docker)
@@ -343,6 +598,41 @@ curl -X POST http://localhost:2304/kdd/create \
     "risks": ["Risk 1"],
     "timeline": "Q1 2024"
   }'
+
+# Test KDD review (takes ~30-60s)
+curl -X POST http://localhost:2304/kdd/review \
+  -H "Content-Type: application/json" \
+  -d '{"pageId": "1671169"}'
+
+# Test KDD review with auto-post to Confluence
+curl -X POST http://localhost:2304/kdd/review \
+  -H "Content-Type: application/json" \
+  -d '{"pageId": "1671169", "autoPost": true}'
+
+# Test review and comment (separate endpoint)
+curl -X POST http://localhost:2304/kdd/review-and-comment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pageId": "1671169",
+    "reviewResults": {
+      "overallRating": "Acceptable",
+      "forumReady": "Conditional",
+      "sections": { ... }
+    }
+  }'
+
+# Test KDD creation with auto-review
+curl -X POST "http://localhost:2304/kdd/create?autoReview=true" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "KDD: Test",
+    "problem": "Test problem",
+    "goals": ["Goal 1"],
+    "proposedSolution": "Solution",
+    "alternatives": ["Alt 1"],
+    "risks": ["Risk 1"],
+    "timeline": "Q1 2024"
+  }'
 ```
 
 ## KDD Template Structure
@@ -365,16 +655,47 @@ Generated KDD pages include:
 If the agent can't reach Ollama:
 
 ```bash
-# Verify Ollama is running
-curl http://localhost:11434/api/tags
+# Verify Ollama container is running
+docker ps | grep ollama
 
-# For Docker on macOS/Windows, use:
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+# Test DNS resolution from confluence-kdd-agent container
+docker exec confluence-kdd-agent cat /etc/hosts | grep hardcore
 
-# For Docker on Linux, you may need:
-OLLAMA_BASE_URL=http://localhost:11434
-# And run with: --network="host"
+# Test connectivity using DNS name
+docker exec confluence-kdd-agent curl -s http://hardcore_dijkstra:11434/api/version
+
+# Test with IP directly (should match the extra_hosts mapping)
+docker exec confluence-kdd-agent curl -s http://172.27.0.3:11434/api/version
+
+# Verify Ollama has the model loaded
+curl http://hardcore_dijkstra:11434/api/tags | grep qwen
 ```
+
+**DNS Configuration:**
+The `docker-compose.yml` uses `extra_hosts` to map the DNS name `hardcore_dijkstra` to the Ollama container IP:
+```yaml
+extra_hosts:
+  - "hardcore_dijkstra:172.27.0.3"
+```
+
+If the Ollama container IP changes, update the `extra_hosts` mapping or restart both containers to ensure they're on the same network.
+
+### KDD Review Timeout Issues
+
+If KDD review fails with timeout errors:
+
+```bash
+# Check Ollama is responding within timeout (60s per prompt)
+docker exec confluence-kdd-agent curl -s --max-time 65 http://hardcore_dijkstra:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3","prompt":"test","stream":false}'
+```
+
+**Performance Tips:**
+- Reviews run 6 prompts sequentially (not parallel) to avoid overwhelming Ollama
+- Each prompt has a 60-second timeout
+- Content is truncated to 6000 characters for faster processing
+- Total review time: ~30-60 seconds depending on Ollama load
 
 ### Confluence API Errors
 

@@ -235,4 +235,29 @@ export class ConfluenceService {
       throw new ConfluenceError(`Failed to add labels: ${error}`);
     }
   }
+
+  async addComment(pageId: string, comment: string, title: string = 'KDD Review Feedback'): Promise<void> {
+    try {
+      const body = {
+        type: 'comment',
+        container: {
+          id: pageId,
+          type: 'page',
+        },
+        body: {
+          storage: {
+            value: comment,
+            representation: 'storage',
+          },
+        },
+      };
+
+      await this.client.post('/content', body);
+      console.log(`Comment added to page ${pageId}`);
+    } catch (error) {
+      console.error(`Failed to add comment to page ${pageId}:`, error);
+      if (error instanceof ConfluenceError) throw error;
+      throw new ConfluenceError(`Failed to add comment: ${error}`);
+    }
+  }
 }

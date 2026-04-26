@@ -5,7 +5,7 @@ import type { ConfluenceConfig, KddConfig, ServerConfig, OllamaConfig } from './
 dotenv.config();
 
 const envSchema = z.object({
-  OLLAMA_BASE_URL: z.string().default('http://172.27.0.3:11434'),
+  OLLAMA_BASE_URL: z.string().default('http://hardcore_dijkstra:11434'),
   OLLAMA_MODEL: z.string().default('qwen3'),
   CONFLUENCE_URL: z.string().url(),
   CONFLUENCE_EMAIL: z.string().email(),

@@ -10,12 +10,14 @@ import { CqlTranslatorService } from './services/cql-translator.js';
 import { KddTemplateService } from './services/kdd-template.js';
 import { ProblemRefinerService } from './services/problem-refiner.js';
 import { KddSuggesterService } from './services/kdd-suggester.js';
+import { KddReviewService } from './services/kdd-review.js';
 import { healthRoutes } from './routes/health.js';
 import { searchRoutes } from './routes/search.js';
 import { kddRoutes } from './routes/kdd.js';
 import { refineRoutes } from './routes/refine.js';
 import { suggestRoutes } from './routes/suggest.js';
 import { searchContextRoutes } from './routes/search-context.js';
+import { kddReviewRoutes } from './routes/kdd-review.js';
 import { handleError, AppError } from './utils/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
   const kddTemplateService = new KddTemplateService(config.kdd);
   const problemRefinerService = new ProblemRefinerService(ollamaService);
   const kddSuggesterService = new KddSuggesterService(ollamaService);
+  const kddReviewService = new KddReviewService(ollamaService);
 
   // Serve static files (web UI)
   await fastify.register(fastifyStatic, {
@@ -57,13 +60,16 @@ async function main(): Promise<void> {
     await searchContextRoutes(instance, confluenceService, cqlTranslatorService, config.server, config.confluence);
   });
   await fastify.register(async (instance) => {
-    await kddRoutes(instance, confluenceService, kddTemplateService, config.kdd, config.confluence);
+    await kddRoutes(instance, confluenceService, kddTemplateService, kddReviewService, config.kdd, config.confluence);
   });
   await fastify.register(async (instance) => {
     await refineRoutes(instance, problemRefinerService, confluenceService);
   });
   await fastify.register(async (instance) => {
     await suggestRoutes(instance, kddSuggesterService);
+  });
+  await fastify.register(async (instance) => {
+    await kddReviewRoutes(instance, confluenceService, kddReviewService);
   });
 
   // Global error handler
@@ -112,6 +118,8 @@ async function main(): Promise<void> {
 ║    POST /suggest-kdd   - AI suggestions for all KDD fields       ║
 ║    POST /search        - Natural language Confluence search     ║
 ║    POST /kdd/create    - Create KDD template page               ║
+║    POST /kdd/review  - Review KDD document with AI            ║
+║    POST /kdd/review-and-comment - Post review as comment       ║
 ╠════════════════════════════════════════════════════════════════╣
 ║  Configured:                                                   ║
 ║    Confluence: ${config.confluence.baseUrl.slice(0, 37)}...  ║

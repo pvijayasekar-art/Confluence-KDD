@@ -110,3 +110,39 @@ export interface CqlTranslationResult {
   cql: string;
   explanation?: string;
 }
+
+// KDD Review Types
+export type ReviewStatus = 'CLEAR' | 'NEEDS_SHARPENING' | 'MISSING' | 'RISK' | 'RECOMMENDATION';
+
+export interface ReviewSection {
+  status: ReviewStatus;
+  findings: string[];
+  suggestions: string[];
+}
+
+export interface KddReviewResult {
+  overallRating: 'Poor' | 'Needs Work' | 'Acceptable' | 'Strong';
+  forumReady: 'Yes' | 'No' | 'Conditional';
+  sections: {
+    completeness: ReviewSection;
+    clarity: ReviewSection;
+    outcome: ReviewSection;
+    stakeholder: ReviewSection;
+    abbreviations: ReviewSection;
+    fullRead: ReviewSection;
+  };
+  criticalGaps: string[];
+  requiredInputs: Array<{ item: string; provider: string }>;
+  recommendations: Array<{ section: string; recommendation: string }>;
+  forumReadinessChecklist: Array<{ item: string; status: boolean }>;
+}
+
+export interface KddReviewRequest {
+  pageId: string;
+  autoPost?: boolean;
+}
+
+export interface KddReviewAndCommentRequest {
+  pageId: string;
+  reviewResults: KddReviewResult;
+}

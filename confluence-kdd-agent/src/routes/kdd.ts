@@ -2,8 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ConfluenceService } from '../services/confluence.js';
 import type { KddTemplateService } from '../services/kdd-template.js';
-import type { KddConfig, ConfluenceConfig } from '../types.js';
+import type { KddConfig, ConfluenceConfig, KddReviewResult } from '../types.js';
 import { ValidationError } from '../utils/errors.js';
+import type { KddReviewService } from '../services/kdd-review.js';
 
 const kddCreateSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -22,6 +23,7 @@ export async function kddRoutes(
   fastify: FastifyInstance,
   confluenceService: ConfluenceService,
   kddTemplateService: KddTemplateService,
+  kddReviewService: KddReviewService,
   kddConfig: KddConfig,
   confluenceConfig: ConfluenceConfig
 ): Promise<void> {
@@ -34,6 +36,7 @@ export async function kddRoutes(
     }
 
     const data = parseResult.data;
+    const autoReview = (request.query as { autoReview?: string }).autoReview === 'true';
 
     // Generate KDD content
     const content = kddTemplateService.generateKddContent(data);
@@ -51,6 +54,16 @@ export async function kddRoutes(
       await confluenceService.addLabels(page.id, data.labels);
     }
 
+    // Optional auto-review
+    let review: KddReviewResult | undefined;
+    if (autoReview) {
+      try {
+        review = await kddReviewService.reviewKdd(content, page.title);
+      } catch (err) {
+        console.error('Auto-review failed:', err);
+      }
+    }
+
     return {
       success: true,
       pageId: page.id,
@@ -58,6 +71,8 @@ export async function kddRoutes(
       url: page.url,
       spaceKey: confluenceConfig.spaceKey,
       parentPageId: kddConfig.parentPageId,
+      review,
+      autoReviewEnabled: autoReview,
     };
   });
 }

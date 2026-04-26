@@ -81,6 +81,20 @@
       ✨ Refine Problem Statement
     </button>
 
+    <!-- Quick Actions -->
+    <div class="mt-6 flex justify-center">
+      <button 
+        id="quickReviewBtn"
+        class="flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/10 rounded-lg text-purple-300 hover:text-purple-200 transition-all"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>🏛️ Review Existing KDD Document</span>
+        <span class="text-xs text-slate-500 ml-1">(skip refinement)</span>
+      </button>
+    </div>
+
     <!-- Loading State -->
     <div id="loadingState" class="hidden mt-8 text-center">
       <div class="inline-block p-4 bg-slate-800/50 rounded-xl">
@@ -151,15 +165,45 @@
           </h3>
           <p class="text-sm text-slate-300 mb-4">Use this refined statement to create a KDD (Key Design Decision) document</p>
           
-          <button 
-            id="addToKddBtn"
-            class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Add to KDD Draft
-          </button>
+          <div class="flex flex-wrap gap-3">
+            <button 
+              id="addToKddBtn"
+              class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Create New KDD Draft
+            </button>
+          </div>
+
+          <!-- Review Existing KDD Section -->
+          <div class="mt-6 pt-6 border-t border-slate-700/50">
+            <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Or Review an Existing KDD
+            </h4>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text" 
+                id="reviewLinkInput"
+                class="flex-1 p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white text-sm" 
+                placeholder="Paste Confluence page URL or ID (e.g., https://.../pages/1671169 or just 1671169)"
+              >
+              <button 
+                id="openReviewBtn"
+                class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg font-medium transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                </svg>
+                Start Review
+              </button>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">AI will review your KDD using 6 Architecture Review Forum prompts</p>
+          </div>
         </div>
       </div>
     </div>
@@ -246,6 +290,58 @@
         <button id="startOverBtn" class="block mx-auto mt-4 text-slate-400 hover:text-white transition-colors">
           Start Over
         </button>
+      </div>
+    </div>
+
+    <!-- KDD Review Section -->
+    <div id="kddReviewSection" class="hidden mt-8">
+      <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+        <h2 class="text-xl font-bold mb-4">🏛️ Review KDD Document</h2>
+        <p class="text-sm text-slate-300 mb-4">Enter a Confluence page ID to run the Architecture Review Forum checklist</p>
+        
+        <div class="flex gap-3 mb-4">
+          <input 
+            type="text" 
+            id="reviewPageId" 
+            class="flex-1 p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white" 
+            placeholder="Enter Confluence Page ID (e.g., 1671169)"
+          >
+          <button 
+            id="reviewKddBtn"
+            class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg font-semibold transition-all"
+          >
+            🔍 Review KDD
+          </button>
+        </div>
+
+        <!-- Review Results -->
+        <div id="reviewResults" class="hidden">
+          <div id="reviewSummary" class="mb-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <!-- Summary content injected here -->
+          </div>
+          
+          <div class="space-y-4">
+            <!-- Section Reviews -->
+            <div id="sectionReviews" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Section cards injected here -->
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <button 
+              id="postReviewCommentBtn"
+              class="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-lg font-semibold transition-all"
+            >
+              📤 Post Review as Comment
+            </button>
+            <button 
+              id="closeReviewBtn"
+              class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -664,6 +760,12 @@
       kddFormSection.classList.add('hidden');
       successMessage.classList.add('hidden');
       errorMessage.classList.add('hidden');
+      document.getElementById('kddReviewSection').classList.add('hidden');
+      document.getElementById('reviewResults').classList.add('hidden');
+      document.getElementById('reviewPageId').value = '';
+      document.getElementById('reviewLinkInput').value = '';
+      currentReviewResults = null;
+      currentReviewPageId = '';
       
       // Remove AI suggestions indicator if present
       const indicator = document.getElementById('ai-suggestions-indicator');
@@ -676,11 +778,234 @@
       setTimeout(() => errorMessage.classList.add('hidden'), 5000);
     }
 
+    // KDD Review functionality
+    let currentReviewResults = null;
+    let currentReviewPageId = '';
+
+    async function reviewKdd() {
+      const pageId = document.getElementById('reviewPageId').value.trim();
+      console.log('reviewKdd called with pageId:', pageId);
+      
+      if (!pageId) {
+        showError('Please enter a Confluence page ID');
+        return;
+      }
+
+      currentReviewPageId = pageId;
+      const reviewBtn = document.getElementById('reviewKddBtn');
+      const reviewResults = document.getElementById('reviewResults');
+      
+      reviewBtn.disabled = true;
+      reviewBtn.textContent = '🔍 Reviewing...';
+      reviewResults.classList.add('hidden');
+
+      try {
+        console.log('Making API call to /kdd/review');
+        const response = await fetch('/kdd/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId })
+        });
+
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to review KDD');
+        }
+
+        const result = await response.json();
+        console.log('Review result received:', result);
+        
+        currentReviewResults = result.review;
+        displayReviewResults(result.review, result.pageTitle);
+      } catch (err) {
+        console.error('Review failed:', err);
+        showError(err.message);
+      } finally {
+        reviewBtn.disabled = false;
+        reviewBtn.textContent = '🔍 Review KDD';
+      }
+    }
+
+    function displayReviewResults(review, pageTitle) {
+      console.log('displayReviewResults called with:', review, pageTitle);
+      
+      const reviewResults = document.getElementById('reviewResults');
+      const reviewSummary = document.getElementById('reviewSummary');
+      const sectionReviews = document.getElementById('sectionReviews');
+      
+      console.log('Elements found:', { reviewResults, reviewSummary, sectionReviews });
+
+      const ratingEmoji = { 'Poor': '🔴', 'Needs Work': '🟡', 'Acceptable': '🟢', 'Strong': '✅' };
+      const forumReadyEmoji = { 'Yes': '✅', 'No': '🔴', 'Conditional': '🟡' };
+      const statusEmoji = { 'CLEAR': '✅', 'NEEDS_SHARPENING': '🟡', 'MISSING': '🔴', 'RISK': '⚠️', 'RECOMMENDATION': '💡' };
+      const statusColors = { 'CLEAR': 'text-green-400', 'NEEDS_SHARPENING': 'text-yellow-400', 'MISSING': 'text-red-400', 'RISK': 'text-orange-400', 'RECOMMENDATION': 'text-blue-400' };
+
+      // Summary
+      reviewSummary.innerHTML = `
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">Review Results for "${escapeHtml(pageTitle)}"</h3>
+          <div class="text-right">
+            <p class="text-sm"><strong>Overall Rating:</strong> ${ratingEmoji[review.overallRating]} ${review.overallRating}</p>
+            <p class="text-sm"><strong>Forum Ready:</strong> ${forumReadyEmoji[review.forumReady]} ${review.forumReady}</p>
+          </div>
+        </div>
+        ${review.criticalGaps.length > 0 ? `
+          <div class="mb-4">
+            <h4 class="font-semibold text-red-400 mb-2">🔴 Critical Gaps (Must Fix Before Forum)</h4>
+            <ul class="list-disc list-inside text-sm space-y-1">
+              ${review.criticalGaps.map(gap => `<li>${escapeHtml(gap)}</li>`).join('')}
+            </ul>
+          </div>
+        ` : '<p class="text-green-400">✅ No critical gaps found!</p>'}
+      `;
+
+      // Section reviews
+      const sections = [
+        { key: 'completeness', title: '1. Completeness & Missing Points' },
+        { key: 'clarity', title: '2. Sharpness & Clarity' },
+        { key: 'outcome', title: '3. Outcome Clarity' },
+        { key: 'stakeholder', title: '4. Stakeholder Understandability' },
+        { key: 'abbreviations', title: '5. Abbreviations & Terminology' },
+        { key: 'fullRead', title: '6. Full Document Read-Through' },
+      ];
+
+      sectionReviews.innerHTML = sections.map(section => {
+        const data = review.sections[section.key];
+        return `
+          <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <h4 class="font-semibold mb-2 ${statusColors[data.status]}">
+              ${statusEmoji[data.status]} ${section.title}
+            </h4>
+            <p class="text-sm mb-2"><strong>Status:</strong> ${data.status}</p>
+            ${data.findings.length > 0 ? `
+              <div class="mb-2">
+                <p class="text-xs font-semibold text-slate-400">Findings:</p>
+                <ul class="list-disc list-inside text-xs space-y-1">
+                  ${data.findings.slice(0, 3).map(f => `<li>${escapeHtml(f.substring(0, 100))}${f.length > 100 ? '...' : ''}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            ${data.suggestions.length > 0 ? `
+              <div>
+                <p class="text-xs font-semibold text-slate-400">Suggestions:</p>
+                <ul class="list-disc list-inside text-xs space-y-1">
+                  ${data.suggestions.slice(0, 2).map(s => `<li>${escapeHtml(s.substring(0, 100))}${s.length > 100 ? '...' : ''}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      reviewResults.classList.remove('hidden');
+      console.log('Review results displayed successfully');
+    }
+
+    async function postReviewComment() {
+      if (!currentReviewResults || !currentReviewPageId) {
+        showError('No review results to post');
+        return;
+      }
+
+      const postBtn = document.getElementById('postReviewCommentBtn');
+      postBtn.disabled = true;
+      postBtn.textContent = '📤 Posting...';
+
+      try {
+        const response = await fetch('/kdd/review-and-comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageId: currentReviewPageId,
+            reviewResults: currentReviewResults
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to post review comment');
+        }
+
+        alert('Review posted as comment successfully!');
+        closeReview();
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        postBtn.disabled = false;
+        postBtn.textContent = '📤 Post Review as Comment';
+      }
+    }
+
+    function closeReview() {
+      document.getElementById('kddReviewSection').classList.add('hidden');
+      document.getElementById('reviewResults').classList.add('hidden');
+      document.getElementById('reviewPageId').value = '';
+      currentReviewResults = null;
+      currentReviewPageId = '';
+    }
+
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
+
+    function showKddReview() {
+      console.log('showKddReview called');
+      
+      // Get the link/ID from the input
+      const linkInput = document.getElementById('reviewLinkInput').value.trim();
+      console.log('Link input:', linkInput);
+      
+      if (!linkInput) {
+        showError('Please enter a Confluence page URL or ID');
+        return;
+      }
+
+      // Extract page ID from URL or use as-is if just an ID
+      let pageId = linkInput;
+      const urlMatch = linkInput.match(/[?&]pageId=(\d+)/);
+      if (urlMatch) {
+        pageId = urlMatch[1];
+      } else if (/^\d+$/.test(linkInput)) {
+        pageId = linkInput;
+      } else {
+        showError('Invalid Confluence link or page ID. Please use format: https://.../pages/12345 or just 12345');
+        return;
+      }
+
+      console.log('Extracted pageId:', pageId);
+
+      // Store the page ID and show review section
+      currentReviewPageId = pageId;
+      document.getElementById('reviewPageId').value = pageId;
+      document.getElementById('kddReviewSection').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+      document.getElementById('kddFormSection').classList.add('hidden');
+      document.getElementById('successMessage').classList.add('hidden');
+
+      console.log('Starting review...');
+      // Auto-start the review
+      reviewKdd();
+    }
+
+    // KDD Review Event Listeners
+    document.getElementById('quickReviewBtn').addEventListener('click', () => {
+      // Hide all other sections and show review section
+      document.getElementById('kddReviewSection').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+      document.getElementById('kddFormSection').classList.add('hidden');
+      document.getElementById('successMessage').classList.add('hidden');
+      document.getElementById('loadingState').classList.add('hidden');
+      // Focus the input
+      document.getElementById('reviewPageId').focus();
+    });
+    document.getElementById('openReviewBtn').addEventListener('click', showKddReview);
+    document.getElementById('reviewKddBtn').addEventListener('click', reviewKdd);
+    document.getElementById('postReviewCommentBtn').addEventListener('click', postReviewComment);
+    document.getElementById('closeReviewBtn').addEventListener('click', closeReview);
   </script>
 </body>
 </html>
